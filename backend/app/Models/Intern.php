@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'training',
     'institution',
     'level',
+    'type_stage',   // <-- ajout
     'supervisor_id',
     'user_id',
 ])]
@@ -24,25 +25,28 @@ class Intern extends Model
 
     protected function casts(): array
     {
-        
         return [
             'date_of_birth' => 'date',
         ];
     }
+
     public function supervisor(): BelongsTo
     {
         return $this->belongsTo(Supervisor::class);
     }
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
+
     public function projects(): BelongsToMany
     {
         return $this->belongsToMany(Project::class, 'project_intern');
     }
+
     public function reports(): HasMany
-{
-    return $this->hasMany(Report::class);
-}
+    {
+        return $this->hasMany(Report::class);
+    }
 }

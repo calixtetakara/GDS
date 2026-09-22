@@ -157,13 +157,8 @@ function Rapports({ utilisateur }) {
               <textarea rows={5} value={contenu} onChange={(e) => setContenu(e.target.value)} placeholder="Décrivez les activités réalisées cette semaine..." className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Document joint (PDF, max 10 Mo)</label>
-              <input
-                type="file"
-                accept=".pdf"
-                onChange={(e) => setFichier(e.target.files?.[0] ?? null)}
-                className="w-full text-sm text-slate-600 file:mr-4 file:rounded-lg file:border-0 file:bg-indigo-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-indigo-700 hover:file:bg-indigo-100"
-              />
+              
+              
               {fichier && (
                 <div className="mt-2 flex items-center gap-2 text-xs text-slate-500">
                   <Paperclip size={13} />

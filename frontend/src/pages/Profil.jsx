@@ -193,6 +193,15 @@ function Profil() {
                     <GraduationCap className="text-indigo-600" size={16} />
                     <span>{intern.training} — {intern.level} ({intern.institution})</span>
                   </div>
+                  {intern.type_stage && (
+                    <div className="flex items-center gap-3">
+                      <BriefcaseBusiness className="text-indigo-600" size={16} />
+                      <span>
+                        Type de stage :{" "}
+                        <span className="capitalize font-medium text-slate-800">{intern.type_stage}</span>
+                      </span>
+                    </div>
+                  )}
                   <div className="flex items-center gap-3">
                     <UserRound className="text-indigo-600" size={16} />
                     <span>Encadreur : {intern.supervisor?.user ? `${intern.supervisor.user.first_name} ${intern.supervisor.user.last_name}` : "—"}</span>

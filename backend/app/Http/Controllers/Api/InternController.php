@@ -7,6 +7,7 @@ use App\Mail\AccountCreatedMail;
 use App\Models\Intern;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -46,9 +47,10 @@ class InternController extends Controller
     {
         $validated = $request->validate([
             'date_of_birth' => 'required|date',
-            'training' => 'required|string|max:20',
-            'institution' => 'required|string|max:30',
-            'level' => 'required|string|max:30',
+            'training' => 'required|string|max:255',
+            'institution' => 'required|string|max:255',
+            'level' => 'required|string|max:255',
+            'type_stage' => 'nullable|in:hybride,online,onsite',
             'supervisor_id' => 'nullable|exists:supervisors,id',
             'user_id' => 'nullable|exists:users,id',
             'first_name' => 'nullable|string|max:50',
@@ -59,35 +61,57 @@ class InternController extends Controller
 
         $user = null;
         $generatedPassword = null;
-        if (! empty($validated['email'])) {
-            $generatedPassword = $validated['password'] ?? Str::password(12);
-            $user = User::create([
-                'first_name' => $validated['first_name'] ?? 'Stagiaire',
-                'last_name' => $validated['last_name'] ?? 'Inconnu',
-                'email' => $validated['email'],
-                'password' => $generatedPassword,
-                'status' => 'Active',
-            ]);
-            $user->assignRole('Stagiaire');
 
-            try {
-                Mail::to($user->email)->send(new AccountCreatedMail($user, $generatedPassword));
-            } catch (\Throwable $e) {
-                logger()->warning('Email de création de compte stagiaire non envoyé', ['error' => $e->getMessage()]);
-            }
+        try {
+            $intern = DB::transaction(function () use ($validated, &$user, &$generatedPassword) {
+                if (! empty($validated['email'])) {
+                    $generatedPassword = $validated['password'] ?? Str::password(12);
+                    $user = User::create([
+                        'first_name' => $validated['first_name'] ?? 'Stagiaire',
+                        'last_name' => $validated['last_name'] ?? 'Inconnu',
+                        'email' => $validated['email'],
+                        'password' => $generatedPassword,
+                        'status' => 'Active',
+                    ]);
+                    $user->assignRole('Stagiaire');
+
+                    try {
+                        Mail::to($user->email)->send(new AccountCreatedMail($user, $generatedPassword));
+                    } catch (\Throwable $e) {
+                        logger()->warning('Email non envoyé', ['error' => $e->getMessage()]);
+                    }
+                }
+
+                return Intern::create([
+                    'date_of_birth' => $validated['date_of_birth'],
+                    'training' => $validated['training'],
+                    'institution' => $validated['institution'],
+                    'level' => $validated['level'],
+                    'type_stage' => $validated['type_stage'] ?? null,
+                    'supervisor_id' => $validated['supervisor_id'] ?? null,
+                    'user_id' => $user?->id ?? $validated['user_id'] ?? null,
+                ]);
+            });
+        } catch (\Throwable $e) {
+            logger()->error('Erreur création stagiaire', [
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la création : ' . $e->getMessage(),
+            ], 500);
         }
 
-        $intern = Intern::create([
-            'date_of_birth' => $validated['date_of_birth'],
-            'training' => $validated['training'],
-            'institution' => $validated['institution'],
-            'level' => $validated['level'],
-            'supervisor_id' => $validated['supervisor_id'] ?? null,
-            'user_id' => $user?->id ?? $validated['user_id'] ?? null,
-        ]);
         $intern->load(['supervisor.user', 'user', 'projects']);
 
-        return response()->json(['success' => true, 'data' => $intern, 'temporary_password' => $generatedPassword], 201);
+        return response()->json([
+            'success' => true,
+            'data' => $intern,
+            'temporary_password' => $generatedPassword,
+        ], 201);
     }
 
     public function update(Request $request, $id)
@@ -96,14 +120,29 @@ class InternController extends Controller
 
         $validated = $request->validate([
             'date_of_birth' => 'sometimes|date',
-            'training' => 'sometimes|string|max:20',
-            'institution' => 'sometimes|string|max:30',
-            'level' => 'sometimes|string|max:30',
+            'training' => 'sometimes|string|max:255',
+            'institution' => 'sometimes|string|max:255',
+            'level' => 'sometimes|string|max:255',
+            'type_stage' => 'sometimes|nullable|in:hybride,online,onsite',
             'supervisor_id' => 'nullable|exists:supervisors,id',
             'user_id' => 'nullable|exists:users,id',
         ]);
 
-        $intern->update($validated);
+        try {
+            $intern->update($validated);
+        } catch (\Throwable $e) {
+            logger()->error('Erreur mise à jour stagiaire', [
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la mise à jour : ' . $e->getMessage(),
+            ], 500);
+        }
+
         $intern->load(['supervisor.user', 'user', 'projects']);
 
         return response()->json(['success' => true, 'data' => $intern]);
