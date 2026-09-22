@@ -46,11 +46,13 @@ class InternController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'date_of_birth' => 'required|date',
+            'date_of_birth' => 'nullable|date',
             'training' => 'required|string|max:255',
             'institution' => 'required|string|max:255',
             'level' => 'required|string|max:255',
             'type_stage' => 'nullable|in:hybride,online,onsite',
+            'start_date' => 'nullable|date',
+            'end_date' => 'nullable|date|after_or_equal:start_date',
             'supervisor_id' => 'nullable|exists:supervisors,id',
             'user_id' => 'nullable|exists:users,id',
             'first_name' => 'nullable|string|max:50',
@@ -83,11 +85,13 @@ class InternController extends Controller
                 }
 
                 return Intern::create([
-                    'date_of_birth' => $validated['date_of_birth'],
+                    'date_of_birth' => $validated['date_of_birth'] ?? null,
                     'training' => $validated['training'],
                     'institution' => $validated['institution'],
                     'level' => $validated['level'],
                     'type_stage' => $validated['type_stage'] ?? null,
+                    'start_date' => $validated['start_date'] ?? null,
+                    'end_date' => $validated['end_date'] ?? null,
                     'supervisor_id' => $validated['supervisor_id'] ?? null,
                     'user_id' => $user?->id ?? $validated['user_id'] ?? null,
                 ]);
@@ -119,11 +123,13 @@ class InternController extends Controller
         $intern = Intern::findOrFail($id);
 
         $validated = $request->validate([
-            'date_of_birth' => 'sometimes|date',
+            'date_of_birth' => 'sometimes|nullable|date',
             'training' => 'sometimes|string|max:255',
             'institution' => 'sometimes|string|max:255',
             'level' => 'sometimes|string|max:255',
             'type_stage' => 'sometimes|nullable|in:hybride,online,onsite',
+            'start_date' => 'sometimes|nullable|date',
+            'end_date' => 'sometimes|nullable|date|after_or_equal:start_date',
             'supervisor_id' => 'nullable|exists:supervisors,id',
             'user_id' => 'nullable|exists:users,id',
         ]);

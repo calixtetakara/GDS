@@ -14,7 +14,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'training',
     'institution',
     'level',
-    'type_stage',   // <-- ajout
+    'type_stage',     // <-- type de stage
+    'start_date',     // <-- début de stage
+    'end_date',       // <-- fin de stage
     'supervisor_id',
     'user_id',
 ])]
@@ -27,6 +29,8 @@ class Intern extends Model
     {
         return [
             'date_of_birth' => 'date',
+            'start_date' => 'date',   // <-- ajout
+            'end_date' => 'date',     // <-- ajout
         ];
     }
 
