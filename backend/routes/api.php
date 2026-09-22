@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\InternController;
 use App\Http\Controllers\Api\NotificationController;
+use App\Http\Controllers\Api\PasswordResetController;
 use App\Http\Controllers\Api\ProjectController;
 use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\SupervisorController;
@@ -14,17 +15,12 @@ use Illuminate\Support\Facades\Route;
 |--------------------------------------------------------------------------
 | Routes API (accessibles via le préfixe /api)
 |--------------------------------------------------------------------------
-| Ces routes sont stateless et appartiennent au groupe de middleware "api".
-| Elles sont consommées par le frontend React (Gestionnaire_stage).
-|
-| Authentification :
-|   - POST /api/login          -> délivre un token Sanctum (Bearer)
-|   - POST /api/logout         -> révoque le token courant
-|   - GET  /api/user           -> utilisateur connecté (+ rôles + permissions)
 */
 
 // === Routes publiques ===
 Route::post('/login', [AuthController::class, 'login']);
+Route::post('/forgot-password', [PasswordResetController::class, 'sendResetLink']);
+Route::post('/reset-password', [PasswordResetController::class, 'reset']);
 
 Route::get('/ping', function () {
     return response()->json(['message' => 'API fonctionnelle']);

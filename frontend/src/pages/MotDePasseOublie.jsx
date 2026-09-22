@@ -3,7 +3,6 @@
 // ============================================================
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 // ============================================================
@@ -20,14 +19,12 @@ function ChampFlottant({ id, label, type = "text", value, onChange, disabled }) 
         onChange={(e) => onChange(e.target.value)}
         disabled={disabled}
         placeholder=" "
-        autoComplete={id === "motDePasse" ? "current-password" : "email"}
-        className="peer w-full h-14 bg-slate-50 border border-slate-200 rounded-xl px-4 pt-6 pb-1 text-[15px] text-slate-900 outline-none transition-all focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 disabled:opacity-60"
+        autoComplete={id === "email" ? "email" : "off"}
+        className="peer w-full h-14 bg-slate-50 border border-slate-200 rounded-xl px-4 pt-4 text-[15px] text-slate-900 outline-none transition-all focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 disabled:opacity-60"
       />
       <label
         htmlFor={id}
-        className="absolute left-3 top-1/2 -translate-y-1/2 text-[15px] text-slate-400 pointer-events-none transition-all
-                   peer-focus:top-0 peer-focus:-translate-y-1/2 peer-focus:text-xs peer-focus:text-indigo-600 peer-focus:bg-white peer-focus:px-1.5
-                   peer-[:not(:placeholder-shown)]:top-0 peer-[:not(:placeholder-shown)]:-translate-y-1/2 peer-[:not(:placeholder-shown)]:text-xs peer-[:not(:placeholder-shown)]:bg-white peer-[:not(:placeholder-shown)]:px-1.5"
+        className="absolute left-3 top-1/2 -translate-y-1/2 text-[15px] text-slate-400 pointer-events-none transition-all peer-focus:top-0 peer-focus:text-xs peer-focus:text-indigo-600 peer-focus:bg-white peer-focus:px-1.5 peer-[:not(:placeholder-shown)]:top-0 peer-[:not(:placeholder-shown)]:text-xs peer-[:not(:placeholder-shown)]:bg-white peer-[:not(:placeholder-shown)]:px-1.5"
       >
         {label}
       </label>
@@ -36,25 +33,35 @@ function ChampFlottant({ id, label, type = "text", value, onChange, disabled }) 
 }
 
 // ============================================================
-// PAGE — Connexion
+// PAGE — Mot de passe oublié
 // ============================================================
-function Connexion({ onConnexion }) {
+function MotDePasseOublie() {
   const [email, setEmail] = useState("");
-  const [motDePasse, setMotDePasse] = useState("");
+  const [message, setMessage] = useState("");
   const [erreur, setErreur] = useState("");
   const [chargement, setChargement] = useState(false);
 
   async function gererEnvoi(e) {
     e.preventDefault();
-    if (!email || !motDePasse) {
-      setErreur("Merci de remplir tous les champs.");
+    if (!email) {
+      setErreur("Merci de renseigner ton email.");
       return;
     }
+
     setChargement(true);
     setErreur("");
-    const res = await onConnexion(email, motDePasse);
-    setChargement(false);
-    if (!res.succes) setErreur(res.message || "Email ou mot de passe incorrect.");
+    setMessage("");
+
+    try {
+      const api = (await import("../api/axios")).default;
+      const r = await api.post("/forgot-password", { email });
+      setMessage(r.data.message);
+      setEmail("");
+    } catch (err) {
+      setErreur(err.response?.data?.message ?? "Erreur lors de l'envoi.");
+    } finally {
+      setChargement(false);
+    }
   }
 
   return (
@@ -69,33 +76,17 @@ function Connexion({ onConnexion }) {
         className="absolute inset-0 w-full h-full object-cover"
       />
 
-      {/* Voile sombre */}
+      {/* Voile pour garantir la lisibilité de la carte */}
       <div className="absolute inset-0 bg-slate-950/50" />
 
-      {/* Teinte indigo */}
+      {/* Légère teinte indigo pour cohérence avec la marque */}
       <div className="absolute inset-0 bg-indigo-950/30" />
-
-      {/* =========================================================
-          BOUTON RETOUR — Flottant en haut à gauche
-          ========================================================= */}
-      <Link
-        to="/"
-        className="absolute top-6 left-6 z-20 inline-flex items-center gap-2
-                   rounded-full border border-white/20 bg-white/10
-                   px-4 py-2 text-sm font-medium text-white
-                   backdrop-blur-md transition-all
-                   hover:bg-white/20 hover:border-white/30
-                   shadow-lg shadow-slate-950/20"
-      >
-        <ArrowLeft size={16} />
-        Accueil
-      </Link>
 
       {/* =========================================================
           CARTE — Centrée
           ========================================================= */}
-      <div className="relative z-10 h-full flex items-center justify-center px-4">
-        <div className="w-full max-w-[420px] bg-white rounded-3xl shadow-2xl shadow-slate-950/30 p-8 sm:p-10">
+      <div className="relative z-10 h-full flex items-center justify-center px-4 py-6 overflow-y-auto">
+        <div className="w-full max-w-[420px] bg-white rounded-3xl shadow-2xl shadow-slate-950/30 p-8 sm:p-10 my-auto">
 
           {/* Logo + marque */}
           <div className="flex flex-col items-center mb-8">
@@ -115,10 +106,10 @@ function Connexion({ onConnexion }) {
           {/* Titre */}
           <div className="text-center mb-7">
             <h2 className="text-xl font-bold text-slate-900 tracking-tight">
-              Connexion à votre compte
+              Mot de passe oublié
             </h2>
             <p className="text-sm text-slate-500 mt-1.5">
-              Accédez à votre espace de suivi de stage.
+              Entre ton email, tu recevras un lien pour réinitialiser ton mot de passe.
             </p>
           </div>
 
@@ -133,28 +124,18 @@ function Connexion({ onConnexion }) {
               disabled={chargement}
             />
 
-            <ChampFlottant
-              id="motDePasse"
-              label="Mot de passe"
-              type="password"
-              value={motDePasse}
-              onChange={setMotDePasse}
-              disabled={chargement}
-            />
-
-            {/* Lien mot de passe oublié */}
-            <div className="flex justify-end">
-              <Link
-                to="/mot-de-passe-oublie"
-                className="text-sm text-indigo-600 hover:text-indigo-700 hover:underline"
-              >
-                Mot de passe oublié ?
-              </Link>
-            </div>
+            {message && (
+              <p className="text-sm text-emerald-600 flex items-start gap-1.5">
+                <span className="material-symbols-outlined text-[16px] mt-0.5">
+                  check_circle
+                </span>
+                {message}
+              </p>
+            )}
 
             {erreur && (
-              <p className="text-sm text-red-600 flex items-center gap-1.5">
-                <span className="material-symbols-outlined text-[16px]">
+              <p className="text-sm text-red-600 flex items-start gap-1.5">
+                <span className="material-symbols-outlined text-[16px] mt-0.5">
                   error
                 </span>
                 {erreur}
@@ -169,16 +150,26 @@ function Connexion({ onConnexion }) {
               {chargement ? (
                 <span className="inline-flex items-center gap-2">
                   <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                  Connexion...
+                  Envoi...
                 </span>
               ) : (
-                "Se connecter"
+                "Envoyer le lien"
               )}
             </Button>
           </form>
 
+          {/* Retour connexion */}
+          <div className="mt-6 text-center">
+            <Link
+              to="/login"
+              className="text-sm text-indigo-600 hover:text-indigo-700 hover:underline"
+            >
+              ← Retour à la connexion
+            </Link>
+          </div>
+
           {/* Mentions */}
-          <p className="text-xs text-slate-400 text-center mt-8">
+          <p className="text-xs text-slate-400 text-center mt-6">
             © 2026 Stagio Technologies
           </p>
         </div>
@@ -187,4 +178,4 @@ function Connexion({ onConnexion }) {
   );
 }
 
-export default Connexion;
+export default MotDePasseOublie;

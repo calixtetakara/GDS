@@ -12,6 +12,8 @@ import Utilisateurs from "./pages/Utilisateurs";
 import Projets from "./pages/Projets";
 import Taches from "./pages/Taches";
 import Profil from "./pages/Profil";
+import MotDePasseOublie from "./pages/MotDePasseOublie";
+import ReinitialiserMotDePasse from "./pages/ReinitialiserMotDePasse";
 import Layout from "./components/Layout";
 import { login, logout, getUtilisateur, fetchUtilisateur } from "./api/authService";
 
@@ -104,6 +106,10 @@ function ContenuApp({ utilisateurConnecte, setUtilisateurConnecte }) {
     <Routes>
       <Route path="/" element={utilisateurConnecte ? <Navigate to="/dashboard" replace /> : <Accueil />} />
       <Route path="/login" element={utilisateurConnecte ? <Navigate to="/dashboard" replace /> : <Connexion onConnexion={gererConnexion} />} />
+
+      {/* --- Routes publiques (mot de passe oublié) --- */}
+      <Route path="/mot-de-passe-oublie" element={<MotDePasseOublie />} />
+      <Route path="/reset-password" element={<ReinitialiserMotDePasse />} />
 
       <Route element={<RouteProtegee utilisateurConnecte={utilisateurConnecte} onDeconnexion={gererDeconnexion} />}>
         <Route path="/dashboard" element={<AccesParRole chemin="/dashboard" utilisateur={utilisateurConnecte}><Dashboard utilisateur={utilisateurConnecte} /></AccesParRole>} />
