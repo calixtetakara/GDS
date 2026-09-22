@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { UserRound, Mail, ShieldCheck, GraduationCap, BriefcaseBusiness, FolderKanban, Building2, Pencil, Save, X } from "lucide-react";
+import { UserRound, Mail, ShieldCheck, GraduationCap, BriefcaseBusiness, FolderKanban, Building2, Pencil, Save, X, Calendar } from "lucide-react";
 import api from "../api/axios";
 import { updateProfile } from "../api/authService";
 
@@ -199,6 +199,17 @@ function Profil() {
                       <span>
                         Type de stage :{" "}
                         <span className="capitalize font-medium text-slate-800">{intern.type_stage}</span>
+                      </span>
+                    </div>
+                  )}
+                  {(intern.start_date || intern.end_date) && (
+                    <div className="flex items-center gap-3">
+                      <Calendar className="text-indigo-600" size={16} />
+                      <span>
+                        Période de stage :{" "}
+                        <span className="font-medium text-slate-800">
+                          {intern.start_date?.slice(0, 10) || "—"} → {intern.end_date?.slice(0, 10) || "—"}
+                        </span>
                       </span>
                     </div>
                   )}

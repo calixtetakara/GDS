@@ -13,11 +13,12 @@ function Stagiaires({ utilisateur }) {
     last_name: "",
     email: "",
     password: "",
-    date_of_birth: "",
     training: "",
     institution: "",
     level: "",
     type_stage: "",
+    start_date: "",
+    end_date: "",
   });
   const [searchParams, setSearchParams] = useSearchParams();
   const recherche = searchParams.get("recherche") ?? "";
@@ -68,15 +69,21 @@ function Stagiaires({ utilisateur }) {
       first_name,
       last_name,
       email,
-      date_of_birth,
       training,
       institution,
       level,
       type_stage,
+      start_date,
+      end_date,
     } = form;
 
-    if (!date_of_birth || !training.trim() || !institution.trim() || !level.trim()) {
-      setErreur("Tous les champs sont obligatoires.");
+    if (!training.trim() || !institution.trim() || !level.trim()) {
+      setErreur("Le domaine, l'institut et le niveau sont obligatoires.");
+      return;
+    }
+
+    if (start_date && end_date && end_date < start_date) {
+      setErreur("La date de fin doit être après la date de début.");
       return;
     }
 
@@ -84,22 +91,24 @@ function Stagiaires({ utilisateur }) {
     try {
       if (editingId) {
         await updateIntern(editingId, {
-          date_of_birth,
           training,
           institution,
           level,
           type_stage: type_stage || null,
+          start_date: start_date || null,
+          end_date: end_date || null,
         });
       } else {
         const nouveau = await create({
           first_name: first_name.trim() || undefined,
           last_name: last_name.trim() || undefined,
           email: email.trim() || undefined,
-          date_of_birth,
           training,
           institution,
           level,
           type_stage: type_stage || null,
+          start_date: start_date || null,
+          end_date: end_date || null,
         });
         if (email.trim()) {
           setIdentifiantsCrees({
@@ -116,11 +125,12 @@ function Stagiaires({ utilisateur }) {
         last_name: "",
         email: "",
         password: "",
-        date_of_birth: "",
         training: "",
         institution: "",
         level: "",
         type_stage: "",
+        start_date: "",
+        end_date: "",
       });
       setEditingId(null);
     } catch (err) {
@@ -138,11 +148,12 @@ function Stagiaires({ utilisateur }) {
       last_name: stagiaire.user?.last_name || "",
       email: stagiaire.user?.email || "",
       password: "",
-      date_of_birth: stagiaire.date_of_birth?.slice(0, 10) || "",
       training: stagiaire.training || "",
       institution: stagiaire.institution || "",
       level: stagiaire.level || "",
       type_stage: stagiaire.type_stage || "",
+      start_date: stagiaire.start_date?.slice(0, 10) || "",
+      end_date: stagiaire.end_date?.slice(0, 10) || "",
     });
     setEditingId(stagiaire.id);
     setSelectionne(stagiaire.id);
@@ -166,7 +177,9 @@ function Stagiaires({ utilisateur }) {
   }
 
   const champClasse =
-    "border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500";
+    "w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500";
+  const labelClasse =
+    "mb-1 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-500";
 
   return (
     <div className="p-8">
@@ -196,64 +209,104 @@ function Stagiaires({ utilisateur }) {
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
-              <input
-                placeholder="Prénom"
-                value={form.first_name}
-                onChange={(e) => handleChange("first_name", e.target.value)}
-                className={champClasse}
-              />
-              <input
-                placeholder="Nom"
-                value={form.last_name}
-                onChange={(e) => handleChange("last_name", e.target.value)}
-                className={champClasse}
-              />
-              <input
-                placeholder="Email (crée un compte de connexion)"
-                value={form.email}
-                onChange={(e) => handleChange("email", e.target.value)}
-                className="border border-slate-300 rounded-lg px-3 py-2 text-sm md:col-span-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-              {!editingId && form.email.trim() && (
-                <p className="text-xs text-slate-400 md:col-span-2">
-                  Un mot de passe sera généré automatiquement et envoyé par email à l'adresse renseignée.
-                </p>
-              )}
-              <input
-                type="date"
-                value={form.date_of_birth}
-                onChange={(e) => handleChange("date_of_birth", e.target.value)}
-                className={champClasse}
-              />
-              <input
-                placeholder="Domaine de formation"
-                value={form.training}
-                onChange={(e) => handleChange("training", e.target.value)}
-                className={champClasse}
-              />
-              <input
-                placeholder="Institut de provenance"
-                value={form.institution}
-                onChange={(e) => handleChange("institution", e.target.value)}
-                className={champClasse}
-              />
-              <input
-                placeholder="Niveau d'étude"
-                value={form.level}
-                onChange={(e) => handleChange("level", e.target.value)}
-                className={champClasse}
-              />
+              <div>
+                <label className={labelClasse}>Nom</label>
+                <input
+                  placeholder="Nom du stagiaire"
+                  value={form.last_name}
+                  onChange={(e) => handleChange("last_name", e.target.value)}
+                  className={champClasse}
+                />
+              </div>
 
-              <select
-                value={form.type_stage}
-                onChange={(e) => handleChange("type_stage", e.target.value)}
-                className={champClasse}
-              >
-                <option value="">-- Type de stage --</option>
-                <option value="hybride">Hybride</option>
-                <option value="online">Online</option>
-                <option value="onsite">Onsite</option>
-              </select>
+              <div>
+                <label className={labelClasse}>Prénom</label>
+                <input
+                  placeholder="Prénom du stagiaire"
+                  value={form.first_name}
+                  onChange={(e) => handleChange("first_name", e.target.value)}
+                  className={champClasse}
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className={labelClasse}>Email</label>
+                <input
+                  placeholder="Email (crée un compte de connexion)"
+                  value={form.email}
+                  onChange={(e) => handleChange("email", e.target.value)}
+                  className={champClasse}
+                />
+                {!editingId && form.email.trim() && (
+                  <p className="mt-1 text-xs text-slate-400">
+                    Un mot de passe sera généré automatiquement et envoyé par email.
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className={labelClasse}>Domaine de formation</label>
+                <input
+                  placeholder="Ex : Informatique"
+                  value={form.training}
+                  onChange={(e) => handleChange("training", e.target.value)}
+                  className={champClasse}
+                />
+              </div>
+
+              <div>
+                <label className={labelClasse}>Institut de provenance</label>
+                <input
+                  placeholder="Ex : Université de Kara"
+                  value={form.institution}
+                  onChange={(e) => handleChange("institution", e.target.value)}
+                  className={champClasse}
+                />
+              </div>
+
+              <div>
+                <label className={labelClasse}>Niveau d'étude</label>
+                <input
+                  placeholder="Ex : L2, L3, Master"
+                  value={form.level}
+                  onChange={(e) => handleChange("level", e.target.value)}
+                  className={champClasse}
+                />
+              </div>
+
+              <div>
+                <label className={labelClasse}>Type de stage</label>
+                <select
+                  value={form.type_stage}
+                  onChange={(e) => handleChange("type_stage", e.target.value)}
+                  className={champClasse}
+                >
+                  <option value="">-- Choisir le type de stage --</option>
+                  <option value="hybride">Hybride</option>
+                  <option value="online">Online</option>
+                  <option value="onsite">Onsite</option>
+                </select>
+              </div>
+
+              <div>
+                <label className={labelClasse}>Début de stage</label>
+                <input
+                  type="date"
+                  value={form.start_date}
+                  onChange={(e) => handleChange("start_date", e.target.value)}
+                  className={champClasse}
+                />
+              </div>
+
+              <div>
+                <label className={labelClasse}>Fin de stage</label>
+                <input
+                  type="date"
+                  value={form.end_date}
+                  onChange={(e) => handleChange("end_date", e.target.value)}
+                  className={champClasse}
+                />
+              </div>
             </div>
 
             {erreur && <p className="mt-4 text-sm text-red-600">{erreur}</p>}
@@ -380,6 +433,18 @@ function Stagiaires({ utilisateur }) {
                   <span>Type de stage</span>
                   <span className="font-medium capitalize text-slate-800">
                     {stagiaireSelectionne.type_stage || "—"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between rounded-xl bg-slate-50 p-3">
+                  <span>Début de stage</span>
+                  <span className="font-medium text-slate-800">
+                    {stagiaireSelectionne.start_date?.slice(0, 10) || "—"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between rounded-xl bg-slate-50 p-3">
+                  <span>Fin de stage</span>
+                  <span className="font-medium text-slate-800">
+                    {stagiaireSelectionne.end_date?.slice(0, 10) || "—"}
                   </span>
                 </div>
               </div>
