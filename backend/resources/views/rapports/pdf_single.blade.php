@@ -23,10 +23,16 @@
     </div>
 
     <div class="meta">
-        <p><span>Semaine :</span> {{ $report->week }}</p>
-        <p><span>Date de soumission :</span> {{ $report->submission_date }}</p>
-        <p><span>Stagiaire :</span> {{ $report->intern->user->first_name }} {{ $report->intern->user->last_name }}</p>
-        <p><span>Encadreur :</span> {{ $report->supervisor->user->first_name }} {{ $report->supervisor->user->last_name }}</p>
+        <p><span>Semaine :</span> {{ $report->week ?? '—' }}</p>
+        <p><span>Date de soumission :</span> {{ $report->submission_date ?? '—' }}</p>
+        <p><span>Stagiaire :</span>
+            {{ $report->intern?->user?->first_name ?? '—' }}
+            {{ $report->intern?->user?->last_name ?? '' }}
+        </p>
+        <p><span>Encadreur :</span>
+            {{ $report->supervisor?->user?->first_name ?? '—' }}
+            {{ $report->supervisor?->user?->last_name ?? '' }}
+        </p>
         <p><span>Statut :</span>
             @php
                 $statutClass = match($report->status) {
@@ -35,7 +41,7 @@
                     default => 'status-attente',
                 };
             @endphp
-            <span class="status {{ $statutClass }}">{{ $report->status }}</span>
+            <span class="status {{ $statutClass }}">{{ $report->status ?? 'En attente' }}</span>
         </p>
         @if($report->comment)
             <p><span>Commentaire :</span> {{ $report->comment }}</p>
@@ -44,7 +50,7 @@
 
     <h2 style="font-size: 16px; color: #475569; margin-bottom: 10px;">Contenu du rapport</h2>
     <div class="content-box">
-        {!! nl2br(e($report->content)) !!}
+        {!! nl2br(e($report->content ?? '—')) !!}
     </div>
 
     <div class="footer">
