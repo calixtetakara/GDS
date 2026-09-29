@@ -59,6 +59,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/projects/{id}/interns/{internId}', [ProjectController::class, 'detachIntern'])->middleware('permission:edit projects');
 
     // --- Tâches ---
+    // ⚠️ Les routes statiques DOIVENT être AVANT les routes avec {id}
+    Route::get('/tasks/template', [TaskController::class, 'downloadTemplate'])->middleware('permission:create tasks');
+    Route::post('/tasks/import', [TaskController::class, 'import'])->middleware('permission:create tasks');
+
     Route::get('/tasks', [TaskController::class, 'index'])->middleware('permission:view tasks');
     Route::get('/tasks/{id}', [TaskController::class, 'show'])->middleware('permission:view tasks');
     Route::post('/tasks', [TaskController::class, 'store'])->middleware('permission:create tasks');

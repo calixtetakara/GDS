@@ -71,13 +71,13 @@ function MotDePasseOublie() {
           FOND — Image plein écran
           ========================================================= */}
       <img
-        src="/2.jpg"
+        src="accueil.png"
         alt=""
         className="absolute inset-0 w-full h-full object-cover"
       />
 
       {/* Voile pour garantir la lisibilité de la carte */}
-      <div className="absolute inset-0 bg-slate-950/50" />
+      <div className="absolute inset-0 bg-slate-50/50" />
 
       {/* Légère teinte indigo pour cohérence avec la marque */}
       <div className="absolute inset-0 bg-indigo-950/30" />

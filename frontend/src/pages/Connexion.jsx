@@ -64,13 +64,13 @@ function Connexion({ onConnexion }) {
           FOND — Image plein écran
           ========================================================= */}
       <img
-        src="/2.jpg"
+        src="accueil.png"
         alt=""
         className="absolute inset-0 w-full h-full object-cover"
       />
 
       {/* Voile sombre */}
-      <div className="absolute inset-0 bg-slate-950/50" />
+      <div className="absolute inset-0 bg-slate-50/50" />
 
       {/* Teinte indigo */}
       <div className="absolute inset-0 bg-indigo-950/30" />

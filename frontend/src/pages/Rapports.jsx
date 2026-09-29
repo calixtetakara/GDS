@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { FileText, CheckCircle2, XCircle, MessageSquareText, RefreshCw, Download, Paperclip, FileDown, Search } from "lucide-react";
+import { FileText, CheckCircle2, XCircle, MessageSquareText, RefreshCw, Download, Paperclip, FileDown, Search, X, Eye } from "lucide-react";
 import * as reportService from "../api/reportService";
 
 const NORMALISATION = {
@@ -25,6 +25,7 @@ function Rapports({ utilisateur }) {
   const [chargement, setChargement] = useState(true);
   const [searchParams, setSearchParams] = useSearchParams();
   const recherche = searchParams.get("recherche") ?? "";
+  const [rapportApercu, setRapportApercu] = useState(null);
 
   const role = utilisateur?.role || "stagiaire";
   const peutValider = role === "encadreur" || role === "administrateur";
@@ -53,6 +54,7 @@ function Rapports({ utilisateur }) {
           commentaire: r.comment ?? "",
           statutBrut: r.status,
           document: r.file ?? null,
+          dateSoumission: r.submission_date ?? null,
         }))
       );
     } catch (err) {
@@ -115,6 +117,7 @@ function Rapports({ utilisateur }) {
       await reportService.updateStatus(id, statutBrut, commentaire);
       setErreur("");
       await chargerRapports();
+      setRapportApercu(null);
     } catch (err) {
       setErreur(err.response?.data?.message ?? "Impossible de valider le rapport.");
     }
@@ -319,11 +322,11 @@ function Rapports({ utilisateur }) {
                   {role === "stagiaire" && (
                     <td className="px-4 py-3">
                       <button
-                        onClick={() => reportService.getPdf(rapport.id)}
-                        title="Télécharger ce rapport"
+                        onClick={() => setRapportApercu(rapport)}
+                        title="Aperçu du rapport"
                         className="inline-flex items-center gap-1 rounded-lg bg-indigo-50 px-2.5 py-1.5 text-xs font-medium text-indigo-700 hover:bg-indigo-100"
                       >
-                        <Download size={13} /> PDF
+                        <Eye size={13} /> Aperçu
                       </button>
                     </td>
                   )}
@@ -368,11 +371,11 @@ function Rapports({ utilisateur }) {
                   {peutValider && (
                     <td className="px-4 py-3 text-right">
                       <button
-                        onClick={() => reportService.getPdf(rapport.id)}
-                        title="Télécharger ce rapport uniquement"
+                        onClick={() => setRapportApercu(rapport)}
+                        title="Aperçu du rapport"
                         className="inline-flex items-center gap-1 rounded-lg bg-indigo-50 px-2.5 py-1.5 text-xs font-medium text-indigo-700 hover:bg-indigo-100"
                       >
-                        <Download size={13} /> PDF
+                        <Eye size={13} /> Aperçu
                       </button>
                     </td>
                   )}
@@ -392,6 +395,153 @@ function Rapports({ utilisateur }) {
           )
         )}
       </div>
+
+      {/* ============================================================
+          MODAL — Aperçu du rapport
+          ============================================================ */}
+      {rapportApercu && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm animate-fade-in"
+          onClick={() => setRapportApercu(null)}
+        >
+          <div
+            className="relative flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl animate-modal-in"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* En-tête du modal */}
+            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+              <div>
+                <h3 className="text-lg font-bold text-slate-800">Aperçu du rapport</h3>
+                <p className="mt-0.5 text-xs text-slate-500">
+                  {rapportApercu.semaine}
+                  {rapportApercu.dateSoumission && ` — Soumis le ${rapportApercu.dateSoumission?.slice(0, 10)}`}
+                </p>
+              </div>
+              <button
+                onClick={() => setRapportApercu(null)}
+                className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                title="Fermer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Contenu scrollable */}
+            <div className="flex-1 overflow-y-auto px-6 py-5">
+              {/* Stagiaire + statut */}
+              <div className="mb-4 flex items-center justify-between gap-4 rounded-xl bg-slate-50 p-4">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                    Stagiaire
+                  </p>
+                  <p className="mt-1 text-base font-semibold text-slate-800">
+                    {rapportApercu.stagiaire}
+                  </p>
+                </div>
+                <span
+                  className={`rounded-full px-3 py-1 text-xs font-medium ${
+                    rapportApercu.statut === "Validé"
+                      ? "bg-emerald-50 text-emerald-700"
+                      : rapportApercu.statut === "Rejeté"
+                      ? "bg-red-50 text-red-700"
+                      : "bg-amber-50 text-amber-700"
+                  }`}
+                >
+                  {rapportApercu.statut}
+                </span>
+              </div>
+
+              {/* Commentaire */}
+              {rapportApercu.commentaire && (
+                <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-700">
+                    Commentaire de l'encadreur
+                  </p>
+                  <p className="mt-2 text-sm text-amber-900">{rapportApercu.commentaire}</p>
+                </div>
+              )}
+
+              {/* Contenu */}
+              <div>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                  Contenu du rapport
+                </p>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm leading-relaxed text-slate-700 whitespace-pre-wrap">
+                  {rapportApercu.contenu || "—"}
+                </div>
+              </div>
+
+              {/* Document joint */}
+              {rapportApercu.document && (
+                <div className="mt-4">
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                    Document joint
+                  </p>
+                  <button
+                    onClick={() => reportService.downloadDocument(rapportApercu.id)}
+                    className="inline-flex items-center gap-2 rounded-lg bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-100"
+                  >
+                    <Paperclip size={14} />
+                    Télécharger le document joint
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Pied du modal */}
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-slate-50 px-6 py-4">
+              {/* Boutons de validation (encadreur / admin) */}
+              {peutValider && rapportApercu.statut === "En attente" ? (
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() =>
+                      changerStatut(
+                        rapportApercu.id,
+                        "Valide",
+                        "Rapport validé par l'encadreur."
+                      )
+                    }
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700"
+                  >
+                    <CheckCircle2 size={14} /> Valider
+                  </button>
+                  <button
+                    onClick={() =>
+                      changerStatut(
+                        rapportApercu.id,
+                        "Rejete",
+                        "Le rapport nécessite des corrections."
+                      )
+                    }
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-red-700"
+                  >
+                    <XCircle size={14} /> Rejeter
+                  </button>
+                </div>
+              ) : (
+                <div />
+              )}
+
+              {/* Boutons télécharger / fermer */}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setRapportApercu(null)}
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-100"
+                >
+                  Fermer
+                </button>
+                <button
+                  onClick={() => reportService.getPdf(rapportApercu.id)}
+                  className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-indigo-200 transition hover:bg-indigo-700"
+                >
+                  <Download size={14} />
+                  Télécharger PDF
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

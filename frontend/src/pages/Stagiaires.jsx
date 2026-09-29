@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Search, PencilLine, Trash2, UserRound, Filter, Eye } from "lucide-react";
+import { Search, PencilLine, Trash2, UserRound, Filter, Eye, Plus, X } from "lucide-react";
 import { getAll, create, update as updateIntern, remove } from "../api/internService";
 import CredentialsModal from "../components/CredentialsModal";
 
@@ -28,6 +28,7 @@ function Stagiaires({ utilisateur }) {
   const [editingId, setEditingId] = useState(null);
   const [selectionne, setSelectionne] = useState(null);
   const [identifiantsCrees, setIdentifiantsCrees] = useState(null);
+  const [modalOuvert, setModalOuvert] = useState(false);
 
   useEffect(() => {
     chargerStagiaires();
@@ -61,6 +62,33 @@ function Stagiaires({ utilisateur }) {
 
   function handleChange(champ, valeur) {
     setForm((prev) => ({ ...prev, [champ]: valeur }));
+  }
+
+  function resetForm() {
+    setForm({
+      first_name: "",
+      last_name: "",
+      email: "",
+      password: "",
+      training: "",
+      institution: "",
+      level: "",
+      type_stage: "",
+      start_date: "",
+      end_date: "",
+    });
+    setEditingId(null);
+    setErreur("");
+  }
+
+  function ouvrirModalCreation() {
+    resetForm();
+    setModalOuvert(true);
+  }
+
+  function fermerModal() {
+    setModalOuvert(false);
+    resetForm();
   }
 
   async function handleSubmit(e) {
@@ -120,19 +148,7 @@ function Stagiaires({ utilisateur }) {
         }
       }
       await chargerStagiaires();
-      setForm({
-        first_name: "",
-        last_name: "",
-        email: "",
-        password: "",
-        training: "",
-        institution: "",
-        level: "",
-        type_stage: "",
-        start_date: "",
-        end_date: "",
-      });
-      setEditingId(null);
+      fermerModal();
     } catch (err) {
       const dataErr = err.response?.data?.errors;
       const message = dataErr
@@ -158,6 +174,7 @@ function Stagiaires({ utilisateur }) {
     setEditingId(stagiaire.id);
     setSelectionne(stagiaire.id);
     setErreur("");
+    setModalOuvert(true);
   }
 
   async function handleDelete(id) {
@@ -184,7 +201,7 @@ function Stagiaires({ utilisateur }) {
   return (
     <div className="p-8">
       {/* --- En-tête --- */}
-      <div className="mb-6 flex items-center justify-between gap-4">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-indigo-600">Gestion</p>
           <h2 className="mt-2 text-2xl font-bold text-slate-800">
@@ -196,130 +213,20 @@ function Stagiaires({ utilisateur }) {
             </p>
           )}
         </div>
+
+        {!estEncadreur && (
+          <button
+            onClick={ouvrirModalCreation}
+            className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-indigo-200 transition hover:bg-indigo-700"
+          >
+            <Plus size={16} />
+            Nouveau stagiaire
+          </button>
+        )}
       </div>
 
-      {/* --- Formulaire + Recherche --- */}
-      <div className="mb-6 grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
-        {!estEncadreur && (
-          <form onSubmit={handleSubmit} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-lg font-bold text-slate-800">
-                {editingId ? "Modifier un stagiaire" : "Ajouter un stagiaire"}
-              </h3>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <div>
-                <label className={labelClasse}>Nom</label>
-                <input
-                  placeholder="Nom du stagiaire"
-                  value={form.last_name}
-                  onChange={(e) => handleChange("last_name", e.target.value)}
-                  className={champClasse}
-                />
-              </div>
-
-              <div>
-                <label className={labelClasse}>Prénom</label>
-                <input
-                  placeholder="Prénom du stagiaire"
-                  value={form.first_name}
-                  onChange={(e) => handleChange("first_name", e.target.value)}
-                  className={champClasse}
-                />
-              </div>
-
-              <div className="md:col-span-2">
-                <label className={labelClasse}>Email</label>
-                <input
-                  placeholder="Email (crée un compte de connexion)"
-                  value={form.email}
-                  onChange={(e) => handleChange("email", e.target.value)}
-                  className={champClasse}
-                />
-                {!editingId && form.email.trim() && (
-                  <p className="mt-1 text-xs text-slate-400">
-                    Un mot de passe sera généré automatiquement et envoyé par email.
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <label className={labelClasse}>Domaine de formation</label>
-                <input
-                  placeholder="Ex : Informatique"
-                  value={form.training}
-                  onChange={(e) => handleChange("training", e.target.value)}
-                  className={champClasse}
-                />
-              </div>
-
-              <div>
-                <label className={labelClasse}>Institut de provenance</label>
-                <input
-                  placeholder="Ex : Université de Kara"
-                  value={form.institution}
-                  onChange={(e) => handleChange("institution", e.target.value)}
-                  className={champClasse}
-                />
-              </div>
-
-              <div>
-                <label className={labelClasse}>Niveau d'étude</label>
-                <input
-                  placeholder="Ex : L2, L3, Master"
-                  value={form.level}
-                  onChange={(e) => handleChange("level", e.target.value)}
-                  className={champClasse}
-                />
-              </div>
-
-              <div>
-                <label className={labelClasse}>Type de stage</label>
-                <select
-                  value={form.type_stage}
-                  onChange={(e) => handleChange("type_stage", e.target.value)}
-                  className={champClasse}
-                >
-                  <option value="">-- Choisir le type de stage --</option>
-                  <option value="hybride">Hybride</option>
-                  <option value="online">Online</option>
-                  <option value="onsite">Onsite</option>
-                </select>
-              </div>
-
-              <div>
-                <label className={labelClasse}>Début de stage</label>
-                <input
-                  type="date"
-                  value={form.start_date}
-                  onChange={(e) => handleChange("start_date", e.target.value)}
-                  className={champClasse}
-                />
-              </div>
-
-              <div>
-                <label className={labelClasse}>Fin de stage</label>
-                <input
-                  type="date"
-                  value={form.end_date}
-                  onChange={(e) => handleChange("end_date", e.target.value)}
-                  className={champClasse}
-                />
-              </div>
-            </div>
-
-            {erreur && <p className="mt-4 text-sm text-red-600">{erreur}</p>}
-
-            <button
-              type="submit"
-              className="mt-5 inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-indigo-200 transition hover:bg-indigo-700"
-            >
-              {editingId ? "Enregistrer" : "Ajouter"}
-            </button>
-          </form>
-        )}
-
+      {/* --- Recherche --- */}
+      <div className="mb-6">
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-center gap-2 text-slate-600">
             <Search size={16} />
@@ -454,6 +361,182 @@ function Stagiaires({ utilisateur }) {
           )}
         </aside>
       </div>
+
+      {/* ============================================================
+          MODAL — Création / Modification d'un stagiaire
+          ============================================================ */}
+      {modalOuvert && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm animate-fade-in"
+          onClick={fermerModal}
+        >
+          <div
+            className="relative flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl animate-modal-in"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* En-tête du modal */}
+            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+              <div>
+                <h3 className="text-lg font-bold text-slate-800">
+                  {editingId ? "Modifier un stagiaire" : "Ajouter un stagiaire"}
+                </h3>
+                <p className="mt-0.5 text-xs text-slate-500">
+                  {editingId
+                    ? "Modifiez les informations du stagiaire"
+                    : "Renseignez les informations du nouveau stagiaire"}
+                </p>
+              </div>
+              <button
+                onClick={fermerModal}
+                className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                title="Fermer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Contenu scrollable */}
+            <form
+              id="form-stagiaire"
+              onSubmit={handleSubmit}
+              className="flex-1 overflow-y-auto px-6 py-5"
+            >
+              <div className="grid gap-4">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <label className={labelClasse}>Nom</label>
+                    <input
+                      placeholder="Nom du stagiaire"
+                      value={form.last_name}
+                      onChange={(e) => handleChange("last_name", e.target.value)}
+                      className={champClasse}
+                    />
+                  </div>
+
+                  <div>
+                    <label className={labelClasse}>Prénom</label>
+                    <input
+                      placeholder="Prénom du stagiaire"
+                      value={form.first_name}
+                      onChange={(e) => handleChange("first_name", e.target.value)}
+                      className={champClasse}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className={labelClasse}>Email</label>
+                  <input
+                    placeholder="Email (crée un compte de connexion)"
+                    value={form.email}
+                    onChange={(e) => handleChange("email", e.target.value)}
+                    className={champClasse}
+                  />
+                  {!editingId && form.email.trim() && (
+                    <p className="mt-1 text-xs text-slate-400">
+                      Un mot de passe sera généré automatiquement et envoyé par email.
+                    </p>
+                  )}
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <label className={labelClasse}>Domaine de formation</label>
+                    <input
+                      placeholder="Ex : Informatique"
+                      value={form.training}
+                      onChange={(e) => handleChange("training", e.target.value)}
+                      className={champClasse}
+                    />
+                  </div>
+
+                  <div>
+                    <label className={labelClasse}>Institut de provenance</label>
+                    <input
+                      placeholder="Ex : Université de Kara"
+                      value={form.institution}
+                      onChange={(e) => handleChange("institution", e.target.value)}
+                      className={champClasse}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <label className={labelClasse}>Niveau d'étude</label>
+                    <input
+                      placeholder="Ex : L2, L3, Master"
+                      value={form.level}
+                      onChange={(e) => handleChange("level", e.target.value)}
+                      className={champClasse}
+                    />
+                  </div>
+
+                  <div>
+                    <label className={labelClasse}>Type de stage</label>
+                    <select
+                      value={form.type_stage}
+                      onChange={(e) => handleChange("type_stage", e.target.value)}
+                      className={champClasse}
+                    >
+                      <option value="">-- Choisir --</option>
+                      <option value="hybride">Hybride</option>
+                      <option value="online">Online</option>
+                      <option value="onsite">Onsite</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <label className={labelClasse}>Début de stage</label>
+                    <input
+                      type="date"
+                      value={form.start_date}
+                      onChange={(e) => handleChange("start_date", e.target.value)}
+                      className={champClasse}
+                    />
+                  </div>
+
+                  <div>
+                    <label className={labelClasse}>Fin de stage</label>
+                    <input
+                      type="date"
+                      value={form.end_date}
+                      onChange={(e) => handleChange("end_date", e.target.value)}
+                      className={champClasse}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {erreur && (
+                <p className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">
+                  {erreur}
+                </p>
+              )}
+            </form>
+
+            {/* Pied du modal (boutons) */}
+            <div className="flex items-center justify-end gap-3 border-t border-slate-200 bg-slate-50 px-6 py-4">
+              <button
+                type="button"
+                onClick={fermerModal}
+                className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-100"
+              >
+                Annuler
+              </button>
+              <button
+                type="submit"
+                form="form-stagiaire"
+                className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-indigo-200 transition hover:bg-indigo-700"
+              >
+                {editingId ? "Enregistrer" : "Ajouter"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {identifiantsCrees && (
         <CredentialsModal

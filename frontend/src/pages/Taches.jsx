@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { CheckSquare, PencilLine, Trash2, Plus, UserRound, Users } from "lucide-react";
+import { useEffect, useState, useMemo } from "react";
+import { CheckSquare, PencilLine, Trash2, Plus, UserRound, Users, Download, Upload } from "lucide-react";
 import * as taskService from "../api/taskService";
 import * as projectService from "../api/projectService";
 import * as internService from "../api/internService";
@@ -8,12 +8,22 @@ function Taches({ utilisateur }) {
   const [taches, setTaches] = useState([]);
   const [projets, setProjets] = useState([]);
   const [stagiaires, setStagiaires] = useState([]);
-  const [form, setForm] = useState({ titre: "", projet_id: "", stagiaire_id: "", statut: "À faire", start_date: "", end_date: "" });
+  const [form, setForm] = useState({
+    titre: "",
+    projet_id: "",
+    stagiaire_id: "",
+    statut: "À faire",
+    start_date: "",
+    end_date: "",
+  });
   const [editingId, setEditingId] = useState(null);
   const [erreur, setErreur] = useState("");
   const [chargement, setChargement] = useState(true);
+  const [importEnCours, setImportEnCours] = useState(false);
+  const [resultatImport, setResultatImport] = useState(null);
 
   const role = utilisateur?.role || "stagiaire";
+  const peutGerer = role === "encadreur";
 
   useEffect(() => {
     chargerTaches();
@@ -21,7 +31,7 @@ function Taches({ utilisateur }) {
       .getAll()
       .then((data) => setProjets(data))
       .catch(() => {});
-    if (role === "administrateur") {
+    if (peutGerer) {
       internService
         .getAll()
         .then((data) => setStagiaires(data))
@@ -41,7 +51,9 @@ function Taches({ utilisateur }) {
           projet: t.project?.name ?? "",
           projet_id: t.project_id,
           stagiaire_id: t.intern_id ?? null,
-          stagiaire: t.intern?.user ? `${t.intern.user.first_name} ${t.intern.user.last_name}` : null,
+          stagiaire: t.intern?.user
+            ? `${t.intern.user.first_name} ${t.intern.user.last_name}`
+            : null,
           start_date: t.start_date?.slice(0, 10) ?? "",
           end_date: t.end_date?.slice(0, 10) ?? "",
           equipe: t.project?.interns ?? [],
@@ -54,6 +66,17 @@ function Taches({ utilisateur }) {
     }
   }
 
+  // Filtrer les stagiaires selon le projet sélectionné
+  const projetSelectionne = useMemo(() => {
+    return projets.find((p) => p.id === Number(form.projet_id));
+  }, [projets, form.projet_id]);
+
+  const stagiairesDisponibles = useMemo(() => {
+    if (!projetSelectionne) return stagiaires;
+    const idsProjet = (projetSelectionne.interns ?? []).map((i) => i.id);
+    return stagiaires.filter((s) => idsProjet.includes(s.id));
+  }, [stagiaires, projetSelectionne]);
+
   async function handleSubmit(e) {
     e.preventDefault();
 
@@ -62,13 +85,18 @@ function Taches({ utilisateur }) {
       return;
     }
 
+    if (form.start_date && form.end_date && form.end_date < form.start_date) {
+      setErreur("La date de fin doit être après la date de début.");
+      return;
+    }
+
     const payload = {
       name: form.titre.trim(),
       project_id: Number(form.projet_id),
       intern_id: form.stagiaire_id ? Number(form.stagiaire_id) : null,
       status: form.statut,
-      start_date: form.start_date,
-      end_date: form.end_date,
+      start_date: form.start_date || null,
+      end_date: form.end_date || null,
     };
 
     try {
@@ -77,13 +105,24 @@ function Taches({ utilisateur }) {
       } else {
         await taskService.create(payload);
       }
-      setForm({ titre: "", projet_id: "", stagiaire_id: "", statut: "À faire", start_date: "", end_date: "" });
+      setForm({
+        titre: "",
+        projet_id: "",
+        stagiaire_id: "",
+        statut: "À faire",
+        start_date: "",
+        end_date: "",
+      });
       setEditingId(null);
       setErreur("");
       await chargerTaches();
     } catch (err) {
       const dataErr = err.response?.data?.errors;
-      setErreur(dataErr ? Object.values(dataErr).flat().join(" ") : (err.response?.data?.message ?? "Une erreur est survenue."));
+      setErreur(
+        dataErr
+          ? Object.values(dataErr).flat().join(" ")
+          : err.response?.data?.message ?? "Une erreur est survenue."
+      );
     }
   }
 
@@ -97,6 +136,19 @@ function Taches({ utilisateur }) {
       end_date: tache.end_date,
     });
     setEditingId(tache.id);
+    setErreur("");
+  }
+
+  function annulerEdition() {
+    setForm({
+      titre: "",
+      projet_id: "",
+      stagiaire_id: "",
+      statut: "À faire",
+      start_date: "",
+      end_date: "",
+    });
+    setEditingId(null);
     setErreur("");
   }
 
@@ -123,79 +175,259 @@ function Taches({ utilisateur }) {
     }
   }
 
-  const champClasse = "w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500";
+  async function handleImport(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setImportEnCours(true);
+    setErreur("");
+    setResultatImport(null);
+
+    try {
+      const res = await taskService.importTaches(file);
+      setResultatImport(res);
+      await chargerTaches();
+    } catch (err) {
+      setErreur(err.response?.data?.message ?? "Erreur lors de l'import.");
+    } finally {
+      setImportEnCours(false);
+      e.target.value = "";
+    }
+  }
+
+  const champClasse =
+    "w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500";
 
   return (
     <div className="p-8">
-      <div className="mb-6 flex items-center justify-between gap-4">
+      {/* --- En-tête --- */}
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-indigo-600">Planification</p>
+          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-indigo-600">
+            Planification
+          </p>
           <h2 className="mt-2 text-2xl font-bold text-slate-800">Tâches</h2>
+          {peutGerer && (
+            <p className="mt-1 text-sm text-slate-500">
+              Créez et gérez les tâches de vos projets
+            </p>
+          )}
         </div>
-        <button onClick={chargerTaches} className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">
-          Actualiser
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={chargerTaches}
+            className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+          >
+            Actualiser
+          </button>
+
+          {peutGerer && (
+            <>
+              <button
+                onClick={() => taskService.downloadTemplate()}
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+              >
+                <Download size={14} />
+                Modèle CSV
+              </button>
+              <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-emerald-200 transition hover:bg-emerald-700">
+                <Upload size={14} />
+                {importEnCours ? "Import..." : "Importer"}
+                <input
+                  type="file"
+                  accept=".csv,.txt"
+                  className="hidden"
+                  disabled={importEnCours}
+                  onChange={handleImport}
+                />
+              </label>
+            </>
+          )}
+        </div>
       </div>
 
-      {role === "administrateur" && (
-        <form onSubmit={handleSubmit} className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      {/* --- Formulaire (encadreur) --- */}
+      {peutGerer && (
+        <form
+          onSubmit={handleSubmit}
+          className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
+        >
+          <h3 className="mb-4 text-lg font-bold text-slate-800">
+            {editingId ? "Modifier la tâche" : "Créer une tâche"}
+          </h3>
+
           <div className="grid gap-4 md:grid-cols-3">
             <div>
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Titre</label>
-              <input value={form.titre} onChange={(e) => setForm({ ...form, titre: e.target.value })} placeholder="Titre de la tâche" className={champClasse} />
+              <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                Titre
+              </label>
+              <input
+                value={form.titre}
+                onChange={(e) => setForm({ ...form, titre: e.target.value })}
+                placeholder="Titre de la tâche"
+                className={champClasse}
+              />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Projet</label>
-              <select value={form.projet_id} onChange={(e) => setForm({ ...form, projet_id: e.target.value, stagiaire_id: "" })} className={champClasse}>
-                <option value="">-- Choisir --</option>
+              <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                Projet
+              </label>
+              <select
+                value={form.projet_id}
+                onChange={(e) =>
+                  setForm({ ...form, projet_id: e.target.value, stagiaire_id: "" })
+                }
+                className={champClasse}
+              >
+                <option value="">-- Choisir un projet --</option>
                 {projets.map((p) => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Stagiaire assigné</label>
-              <select value={form.stagiaire_id} onChange={(e) => setForm({ ...form, stagiaire_id: e.target.value })} className={champClasse}>
-                <option value="">-- Non assigné --</option>
-                {stagiaires.map((s) => (
-                  <option key={s.id} value={s.id}>{s.user?.first_name ? `${s.user.first_name} ${s.user.last_name}` : "Sans compte"}</option>
+              <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                Stagiaire assigné
+              </label>
+              <select
+                value={form.stagiaire_id}
+                onChange={(e) => setForm({ ...form, stagiaire_id: e.target.value })}
+                className={champClasse}
+                disabled={!form.projet_id}
+              >
+                <option value="">
+                  {!form.projet_id
+                    ? "-- Choisir un projet d'abord --"
+                    : stagiairesDisponibles.length === 0
+                    ? "-- Aucun stagiaire dans ce projet --"
+                    : "-- Non assigné --"}
+                </option>
+                {stagiairesDisponibles.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.user?.first_name
+                      ? `${s.user.first_name} ${s.user.last_name}`
+                      : "Sans compte"}
+                  </option>
                 ))}
               </select>
+              {form.projet_id && stagiairesDisponibles.length > 0 && (
+                <p className="mt-1 text-xs text-slate-400">
+                  {stagiairesDisponibles.length} stagiaire
+                  {stagiairesDisponibles.length > 1 ? "s" : ""} dans ce projet
+                </p>
+              )}
             </div>
           </div>
+
           <div className="mt-4 grid gap-4 md:grid-cols-3">
             <div>
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Statut</label>
-              <select value={form.statut} onChange={(e) => setForm({ ...form, statut: e.target.value })} className={champClasse}>
+              <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                Statut
+              </label>
+              <select
+                value={form.statut}
+                onChange={(e) => setForm({ ...form, statut: e.target.value })}
+                className={champClasse}
+              >
                 <option>À faire</option>
                 <option>En cours</option>
                 <option>Terminé</option>
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Date début</label>
-              <input type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} className={champClasse} />
+              <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                Date début
+              </label>
+              <input
+                type="date"
+                value={form.start_date}
+                onChange={(e) => setForm({ ...form, start_date: e.target.value })}
+                className={champClasse}
+              />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Date fin</label>
-              <input type="date" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} className={champClasse} />
+              <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                Date fin
+              </label>
+              <input
+                type="date"
+                value={form.end_date}
+                onChange={(e) => setForm({ ...form, end_date: e.target.value })}
+                className={champClasse}
+              />
             </div>
           </div>
 
           {erreur && <p className="mt-4 text-sm text-red-600">{erreur}</p>}
 
-          <button type="submit" className="mt-4 inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-indigo-200 transition hover:bg-indigo-700">
-            <Plus size={16} />
-            {editingId ? "Enregistrer" : "Ajouter"}
-          </button>
+          <div className="mt-4 flex items-center gap-3">
+            <button
+              type="submit"
+              className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-indigo-200 transition hover:bg-indigo-700"
+            >
+              <Plus size={16} />
+              {editingId ? "Enregistrer" : "Ajouter"}
+            </button>
+            {editingId && (
+              <button
+                type="button"
+                onClick={annulerEdition}
+                className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
+              >
+                Annuler
+              </button>
+            )}
+          </div>
         </form>
       )}
 
       {chargement && <p className="text-sm text-slate-400">Chargement...</p>}
 
+      {/* --- Résultat de l'import CSV --- */}
+      {resultatImport && (
+        <div className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-emerald-800">
+                ✅ {resultatImport.crees} tâche(s) créée(s) avec succès
+              </p>
+              {resultatImport.erreurs && resultatImport.erreurs.length > 0 && (
+                <div className="mt-3">
+                  <p className="text-xs font-semibold text-amber-700">
+                    ⚠️ {resultatImport.erreurs.length} erreur(s) rencontrée(s) :
+                  </p>
+                  <ul className="mt-1 ml-4 list-disc text-xs text-amber-700">
+                    {resultatImport.erreurs.slice(0, 10).map((err, i) => (
+                      <li key={i}>{err}</li>
+                    ))}
+                    {resultatImport.erreurs.length > 10 && (
+                      <li className="italic">
+                        ... et {resultatImport.erreurs.length - 10} autres erreurs
+                      </li>
+                    )}
+                  </ul>
+                </div>
+              )}
+            </div>
+            <button
+              onClick={() => setResultatImport(null)}
+              className="shrink-0 text-xs font-medium text-slate-500 hover:text-slate-700"
+            >
+              Fermer
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* --- Liste des tâches --- */}
       <div className="space-y-4">
         {taches.map((tache) => (
-          <div key={tache.id} className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:flex-row md:items-center md:justify-between">
+          <div
+            key={tache.id}
+            className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:flex-row md:items-center md:justify-between"
+          >
             <div className="flex items-center gap-4">
               <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
                 <CheckSquare size={18} />
@@ -214,17 +446,24 @@ function Taches({ utilisateur }) {
 
             <div className="flex flex-col gap-3 text-xs">
               {(() => {
-                const encadreurs = [...new Map(
-                  (tache.equipe ?? [])
-                    .filter((i) => i.supervisor?.user)
-                    .map((i) => [i.supervisor.id, i.supervisor])
-                ).values()];
+                const encadreurs = [
+                  ...new Map(
+                    (tache.equipe ?? [])
+                      .filter((i) => i.supervisor?.user)
+                      .map((i) => [i.supervisor.id, i.supervisor])
+                  ).values(),
+                ];
                 return encadreurs.length > 0 ? (
                   <div>
-                    <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">Encadreurs</p>
+                    <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">
+                      Encadreurs
+                    </p>
                     <div className="flex flex-wrap gap-1.5">
                       {encadreurs.map((s) => (
-                        <span key={s.id} className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 font-medium text-indigo-700">
+                        <span
+                          key={s.id}
+                          className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 font-medium text-indigo-700"
+                        >
                           <UserRound size={11} />
                           {s.user.first_name} {s.user.last_name}
                         </span>
@@ -237,11 +476,17 @@ function Taches({ utilisateur }) {
               {(tache.equipe ?? []).length > 0 && (
                 <div>
                   <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">
-                    Équipe {tache.equipe.length > 1 ? `(${tache.equipe.length} stagiaires)` : "(1 stagiaire)"}
+                    Équipe{" "}
+                    {tache.equipe.length > 1
+                      ? `(${tache.equipe.length} stagiaires)`
+                      : "(1 stagiaire)"}
                   </p>
                   <div className="flex flex-wrap gap-1.5">
                     {tache.equipe.map((s) => (
-                      <span key={s.id} className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-700">
+                      <span
+                        key={s.id}
+                        className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-700"
+                      >
                         <Users size={11} />
                         {s.user?.first_name} {s.user?.last_name}
                       </span>
@@ -253,28 +498,59 @@ function Taches({ utilisateur }) {
 
             <div className="flex flex-wrap items-center gap-3">
               {tache.start_date && tache.end_date && (
-                <span className="text-xs text-slate-400">{tache.start_date} → {tache.end_date}</span>
+                <span className="text-xs text-slate-400">
+                  {tache.start_date} → {tache.end_date}
+                </span>
               )}
-              {role === "administrateur" ? (
-                <select value={tache.statut} onChange={(e) => changerStatut(tache.id, e.target.value)} className="border border-slate-300 rounded-lg px-2.5 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500">
+
+              {peutGerer ? (
+                <select
+                  value={tache.statut}
+                  onChange={(e) => changerStatut(tache.id, e.target.value)}
+                  className="border border-slate-300 rounded-lg px-2.5 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
                   <option>À faire</option>
                   <option>En cours</option>
                   <option>Terminé</option>
                 </select>
               ) : (
-                <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${tache.statut === "Terminé" ? "bg-emerald-50 text-emerald-700" : tache.statut === "En cours" ? "bg-indigo-50 text-indigo-700" : "bg-slate-100 text-slate-600"}`}>{tache.statut}</span>
+                <span
+                  className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+                    tache.statut === "Terminé"
+                      ? "bg-emerald-50 text-emerald-700"
+                      : tache.statut === "En cours"
+                      ? "bg-indigo-50 text-indigo-700"
+                      : "bg-slate-100 text-slate-600"
+                  }`}
+                >
+                  {tache.statut}
+                </span>
               )}
 
-              {role === "administrateur" && (
+              {peutGerer && (
                 <>
-                  <button onClick={() => handleEdit(tache)} className="rounded-lg border border-slate-200 p-2 text-slate-500 transition hover:border-slate-300 hover:text-slate-700"><PencilLine size={15} /></button>
-                  <button onClick={() => handleDelete(tache.id)} className="rounded-lg border border-red-200 bg-red-50 p-2 text-red-500 transition hover:bg-red-100"><Trash2 size={15} /></button>
+                  <button
+                    onClick={() => handleEdit(tache)}
+                    title="Modifier"
+                    className="rounded-lg border border-slate-200 p-2 text-slate-500 transition hover:border-slate-300 hover:text-slate-700"
+                  >
+                    <PencilLine size={15} />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(tache.id)}
+                    title="Supprimer"
+                    className="rounded-lg border border-red-200 bg-red-50 p-2 text-red-500 transition hover:bg-red-100"
+                  >
+                    <Trash2 size={15} />
+                  </button>
                 </>
               )}
             </div>
           </div>
         ))}
-        {!chargement && taches.length === 0 && <p className="text-center text-sm text-slate-400">Aucune tâche.</p>}
+        {!chargement && taches.length === 0 && (
+          <p className="text-center text-sm text-slate-400">Aucune tâche.</p>
+        )}
       </div>
     </div>
   );
