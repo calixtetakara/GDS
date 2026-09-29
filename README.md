@@ -516,8 +516,12 @@ Les contributions sont les bienvenues. Pour proposer une amélioration :
 ## Auteurs
 
 **Lucie**
+
+
 **Calixte TAKARA**
 - Email : calixtetakara5@gmail.com
+
+
 **Antoine-Marie NABEDE**
 - Email : nabedeantoinemarie@gmail.com
 ---
